@@ -320,7 +320,7 @@ When set to ``0``, the feature would be disabled and the user will
 not be flagged as *unverified*.
 
 ``OPENWISP_RADIUS_DELETE_INACTIVE_USERS``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Default**: ``540`` (18 months)
 
