@@ -15,7 +15,7 @@ from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.mail import send_mail
 from django.db import models
-from django.db.models import ProtectedError, Q
+from django.db.models import Case, F, ProtectedError, Q, When
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.utils.timezone import now
@@ -1565,7 +1565,10 @@ class AbstractRegisteredUser(models.Model):
     def unverify_inactive_users(cls):
         if not app_settings.UNVERIFY_INACTIVE_USERS:
             return
-        cls.objects.filter(
+        # Exclude users who have unspecified, manual, or email
+        # registration method because such users don't have an option
+        # to re-verify. See https://github.com/openwisp/openwisp-radius/issues/517
+        cls.objects.exclude(method__in=['', 'manual', 'email']).filter(
             user__is_staff=False,
             user__last_login__lt=timezone.now()
             - timedelta(days=app_settings.UNVERIFY_INACTIVE_USERS),
@@ -1575,8 +1578,16 @@ class AbstractRegisteredUser(models.Model):
     def delete_inactive_users(cls):
         if not app_settings.DELETE_INACTIVE_USERS:
             return
-        User.objects.filter(
+        User.objects.annotate(
+            # There could be manually created users which never logged in.
+            # We use the "date_joined" field for such users.
+            last_login_or_joined=Case(
+                When(last_login__isnull=True, then=F('date_joined')),
+                default=F('last_login'),
+                output_field=models.DateTimeField(),
+            ),
+        ).filter(
             is_staff=False,
-            last_login__lt=timezone.now()
+            last_login_or_joined__lt=timezone.now()
             - timedelta(days=app_settings.DELETE_INACTIVE_USERS),
         ).delete()
